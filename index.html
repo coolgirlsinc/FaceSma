@@ -2,38 +2,25 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>FaceMash</title>
+  <title>RateMeRiga</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
 <div class="header">
   <h1>RateMeRiga</h1>
-  <p>
-    Were we let in for our looks? No.<br>
-    Will we be judged on them? Yes.
-  </p>
+  <p>Were we let in for our looks? No.<br>Will we be judged on them? Yes.</p>
 </div>
 
 <div class="upload">
   <h2>Upload yourself</h2>
-
   <div class="upload-row">
     <input type="file" id="photoInput" accept="image/*">
-
-    <input
-      type="text"
-      id="textInput"
-      placeholder="Text under photo (max 25)"
-      maxlength="25"
-    >
-
+    <input type="text" id="textInput" placeholder="Text under photo (max 25)" maxlength="25">
     <label class="consent">
-      <input type="checkbox" id="consent">
-      I agree to be rated
+      <input type="checkbox" id="consent"> I agree to be rated!
     </label>
   </div>
-
   <button class="upload-btn" onclick="upload()">Upload</button>
 </div>
 
@@ -62,14 +49,27 @@
 <h2>Top Rated</h2>
 <div id="top5"></div>
 
-<script src="script.js"></script>
+<!-- 🔥 Firebase -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+  import { getDatabase } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+  import { getStorage } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyAq0TW99q5QXU6AyrCO4m7pu-N4zPDlsQE",
+    authDomain: "ratemerigaimage.firebaseapp.com",
+    databaseURL: "https://ratemerigaimage-default-rtdb.firebaseio.com",
+    projectId: "ratemerigaimage",
+    storageBucket: "ratemerigaimage.appspot.com",
+    messagingSenderId: "438635126104",
+    appId: "1:438635126104:web:5723fb25ff663c5bcf192d"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  window.db = getDatabase(app);
+  window.storage = getStorage(app);
+</script>
+
+<script type="module" src="script.js"></script>
 </body>
 </html>
-
-
-
-
-Disclaimer:
-All content is uploaded by users voluntarily.
-The site administration does not verify the identity of persons in photos.
-If you believe content violates your rights, it will be removed immediately upon request.
