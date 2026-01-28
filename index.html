@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>FaceMash</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="header">
+  <h1>RateMeRiga</h1>
+  <p>
+    Were we let in for our looks? No.<br>
+    Will we be judged on them? Yes.
+  </p>
+</div>
+
+<div class="upload">
+  <h2>Upload yourself</h2>
+
+  <div class="upload-row">
+    <input type="file" id="photoInput" accept="image/*">
+
+    <input
+      type="text"
+      id="textInput"
+      placeholder="Text under photo (max 25)"
+      maxlength="25"
+    >
+
+    <label class="consent">
+      <input type="checkbox" id="consent">
+      I agree to be rated
+    </label>
+  </div>
+
+  <button class="upload-btn" onclick="upload()">Upload</button>
+</div>
+
+<hr>
+
+<h2>Who's better?</h2>
+
+<div class="container">
+  <div class="card" onclick="vote(0)">
+    <img id="img1">
+    <p id="text1"></p>
+    <span id="rating1"></span>
+  </div>
+
+  <div class="or">OR</div>
+
+  <div class="card" onclick="vote(1)">
+    <img id="img2">
+    <p id="text2"></p>
+    <span id="rating2"></span>
+  </div>
+</div>
+
+<hr>
+
+<h2>Top Rated</h2>
+<div id="top5"></div>
+
+<script src="script.js"></script>
+</body>
+</html>
+
+
+
+
+Disclaimer:
+All content is uploaded by users voluntarily.
+The site administration does not verify the identity of persons in photos.
+If you believe content violates your rights, it will be removed immediately upon request.
