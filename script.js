@@ -1,21 +1,33 @@
-let people = JSON.parse(localStorage.getItem("people")) || [];
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getDatabase, ref, push, onValue, update } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+
+/* 🔥 Firebase config */
+const firebaseConfig = {
+  apiKey: "AIzaSyAq0TW99q5QXU6AyrCO4m7pu-N4zPDlsQE",
+  authDomain: "ratemerigaimage.firebaseapp.com",
+  databaseURL: "https://ratemerigaimage-default-rtdb.europe-west1.firebasedatabase.app/",
+  projectId: "ratemerigaimage",
+  storageBucket: "ratemerigaimage.appspot.com",
+  messagingSenderId: "438635126104",
+  appId: "1:438635126104:web:5723fb25ff663c5bcf192d"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+
+/* 🧠 Local state */
+let people = [];
 let currentPair = [];
-let lastPair = [];
 
-/* 💾 save */
-function save() {
-  localStorage.setItem("people", JSON.stringify(people));
-}
-
-/* ⛔ блок Enter и Shift+Enter */
+/* ⛔ запрет Enter в поле текста */
 const textInput = document.getElementById("textInput");
 textInput.addEventListener("keydown", e => {
   if (e.key === "Enter") e.preventDefault();
 });
 
-/* 📤 upload */
+/* 📤 Upload photo */
 function upload() {
-  const file = document.getElementById("photoInput").files[0];
+  const file = photoInput.files[0];
   const text = textInput.value.trim();
   const consent = document.getElementById("consent").checked;
 
@@ -26,71 +38,63 @@ function upload() {
 
   const reader = new FileReader();
   reader.onload = () => {
-    people.push({
-      id: crypto.randomUUID(),
+    push(ref(db, "people"), {
       img: reader.result,
-      text,
+      text: text,
       votes: 0
     });
-
-    save();
-    resetPairs();
-    renderAll();
-
-    textInput.value = "";
-    photoInput.value = "";
-    consent.checked = false;
   };
   reader.readAsDataURL(file);
+
+  textInput.value = "";
+  photoInput.value = "";
+  consent.checked = false;
 }
 
-function resetPairs() {
-  currentPair = [];
-  lastPair = [];
-}
+/* 📥 Получаем людей из базы в реальном времени */
+onValue(ref(db, "people"), snapshot => {
+  people = [];
+  snapshot.forEach(child => {
+    people.push({ id: child.key, ...child.val() });
+  });
+  renderAll();
+});
 
-function getRandomIndex(exclude = []) {
-  let idx;
-  let tries = 0;
-  do {
-    idx = Math.floor(Math.random() * people.length);
-    tries++;
-  } while (exclude.includes(idx) && tries < 100);
-  return idx;
-}
-
-/* 🆚 show pair */
-function showPair() {
+/* 🎲 Случайная пара */
+function getRandomPair() {
   if (people.length < 2) return;
 
-  let a, b;
+  let a = Math.floor(Math.random() * people.length);
+  let b;
   do {
-    a = getRandomIndex(lastPair);
-    b = getRandomIndex([a, ...lastPair]);
+    b = Math.floor(Math.random() * people.length);
   } while (a === b);
 
-  currentPair = [a, b];
-  lastPair = [a, b];
-
-  img1.src = people[a].img;
-  img2.src = people[b].img;
-  text1.textContent = people[a].text;
-  text2.textContent = people[b].text;
-  rating1.textContent = "Votes: " + people[a].votes;
-  rating2.textContent = "Votes: " + people[b].votes;
+  currentPair = [people[a], people[b]];
 }
 
-/* 👍 vote */
-function vote(winnerIndex) {
+/* 🖼 Показать пару */
+function showPair() {
+  getRandomPair();
   if (!currentPair.length) return;
 
-  people[currentPair[winnerIndex]].votes++;
-  save();
-  resetPairs();
-  renderAll();
+  img1.src = currentPair[0].img;
+  img2.src = currentPair[1].img;
+  text1.textContent = currentPair[0].text;
+  text2.textContent = currentPair[1].text;
+  rating1.textContent = "Votes: " + currentPair[0].votes;
+  rating2.textContent = "Votes: " + currentPair[1].votes;
 }
 
-/* 🏆 top 5 */
+/* 👍 Голос */
+function vote(index) {
+  const person = currentPair[index];
+  update(ref(db, "people/" + person.id), {
+    votes: person.votes + 1
+  });
+}
+
+/* 🏆 Топ 5 */
 function updateTop5() {
   const top = document.getElementById("top5");
   top.innerHTML = "";
@@ -99,20 +103,21 @@ function updateTop5() {
     .sort((a, b) => b.votes - a.votes)
     .slice(0, 5)
     .forEach((p, i) => {
-      const div = document.createElement("div");
-      div.className = "top-item";
-      div.innerHTML = `
-        <img src="${p.img}">
-        <span>${i + 1}. ${p.text} — ${p.votes} votes</span>
+      top.innerHTML += `
+        <div class="top-item">
+          <img src="${p.img}">
+          <span>${i + 1}. ${p.text} — ${p.votes} votes</span>
+        </div>
       `;
-      top.appendChild(div);
     });
 }
 
+/* 🔄 Перерисовка */
 function renderAll() {
   showPair();
   updateTop5();
 }
 
-/* INIT */
-renderAll();
+/* Делаем функции доступными кнопкам */
+window.upload = upload;
+window.vote = vote;
