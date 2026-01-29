@@ -1,13 +1,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import {
-  getDatabase,
-  ref,
-  push,
-  onValue,
-  update
-} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+import { getDatabase, ref, push, onValue, update } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
-/* 🔥 Firebase config */
+/* Firebase config */
 const firebaseConfig = {
   apiKey: "AIzaSyAq0TW99q5QXU6AyrCO4m7pu-N4zPDlsQE",
   authDomain: "ratemerigaimage.firebaseapp.com",
@@ -18,19 +12,15 @@ const firebaseConfig = {
   appId: "1:438635126104:web:5723fb25ff663c5bcf192d"
 };
 
-/* 🔌 Init */
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
-/* 🧠 State */
+/* State */
 let people = [];
 let currentPair = [];
+let lastSideById = {}; // для strict side alternation
 
-/* 🗳 Local memory */
-let votedIds = JSON.parse(localStorage.getItem("votedIds") || "[]");
-let lastSideById = JSON.parse(localStorage.getItem("lastSideById") || "{}");
-
-/* 📤 Upload */
+/* Upload photo */
 function upload() {
   const file = photoInput.files[0];
   const text = textInput.value.trim();
@@ -41,40 +31,24 @@ function upload() {
     return;
   }
 
-  const img = new Image();
   const reader = new FileReader();
-
-  reader.onload = e => (img.src = e.target.result);
-
-  img.onload = () => {
-    const canvas = document.createElement("canvas");
-    const ctx = canvas.getContext("2d");
-
-    const MAX_WIDTH = 300;
-    const scale = MAX_WIDTH / img.width;
-
-    canvas.width = MAX_WIDTH;
-    canvas.height = img.height * scale;
-
-    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-
-    const compressed = canvas.toDataURL("image/webp", 0.5);
+  reader.onload = e => {
+    const imgData = e.target.result;
 
     const newRef = push(ref(db, "people"), {
-      img: compressed,
+      img: imgData,
       text,
       votes: 0,
       createdAt: Date.now()
     });
 
-    // 🔥 VIRAL HOOK
     showShareBox(newRef.key);
   };
 
   reader.readAsDataURL(file);
 }
 
-/* 🔗 Share box (FAKE ranking for now) */
+/* Show share box */
 function showShareBox(userId) {
   const link = `${window.location.origin}/?ref=${userId}`;
 
@@ -87,11 +61,10 @@ function showShareBox(userId) {
     <br>
     <button onclick="copyLink()">Copy Link</button>
   `;
-
   document.querySelector(".upload").appendChild(box);
 }
 
-/* 📋 Copy */
+/* Copy link */
 function copyLink() {
   const input = document.getElementById("shareLink");
   input.select();
@@ -99,33 +72,31 @@ function copyLink() {
   alert("Link copied!");
 }
 
-/* 📥 Load people */
+/* Load people from Firebase */
 onValue(ref(db, "people"), snapshot => {
   people = [];
   snapshot.forEach(child => {
     people.push({ id: child.key, ...child.val() });
   });
-
   showPair();
   updateTop5();
 });
 
-/* 🔀 Shuffle */
+/* Shuffle helper */
 function shuffle(arr) {
   return arr.sort(() => Math.random() - 0.5);
 }
 
-/* 🎯 Pair logic */
+/* Get next pair */
 function getNextPair() {
-  let available = people.filter(p => !votedIds.includes(p.id));
-  if (available.length < 2) available = [...people];
+  let available = people;
   if (available.length < 2) return null;
 
   const shuffled = shuffle([...available]);
   return [shuffled[0], shuffled[1]];
 }
 
-/* 🖼 Show pair (strict side alternation) */
+/* Show pair with strict side alternation */
 function showPair() {
   const pair = getNextPair();
   if (!pair) return;
@@ -141,7 +112,6 @@ function showPair() {
 
   lastSideById[left.id] = "left";
   lastSideById[right.id] = "right";
-  localStorage.setItem("lastSideById", JSON.stringify(lastSideById));
 
   img1.src = left.img;
   img2.src = right.img;
@@ -149,13 +119,9 @@ function showPair() {
   text2.textContent = right.text;
 }
 
-/* 🗳 Vote */
+/* Vote */
 function vote(index) {
   const winner = currentPair[index];
-
-  votedIds.push(currentPair[0].id, currentPair[1].id);
-  votedIds = [...new Set(votedIds)];
-  localStorage.setItem("votedIds", JSON.stringify(votedIds));
 
   update(ref(db, "people/" + winner.id), {
     votes: (winner.votes || 0) + 1
@@ -165,7 +131,7 @@ function vote(index) {
   updateTop5();
 }
 
-/* 🏆 Top 5 */
+/* Top 5 */
 function updateTop5() {
   const top = document.getElementById("top5");
   top.innerHTML = "";
@@ -183,7 +149,7 @@ function updateTop5() {
     });
 }
 
-/* 🌍 Expose */
+/* Expose functions to HTML */
 window.upload = upload;
 window.vote = vote;
 window.copyLink = copyLink;
