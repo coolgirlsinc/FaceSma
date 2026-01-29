@@ -1,7 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getDatabase, ref, push, onValue, update } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
-/* 🔥 Firebase config */
 const firebaseConfig = {
   apiKey: "AIzaSyAq0TW99q5QXU6AyrCO4m7pu-N4zPDlsQE",
   authDomain: "ratemerigaimage.firebaseapp.com",
@@ -15,17 +14,11 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
-/* 🧠 State */
 let people = [];
+let queue = [];      // 🔥 очередь без повторов
 let currentPair = [];
 
-/* ⛔ запрет Enter */
-const textInput = document.getElementById("textInput");
-textInput.addEventListener("keydown", e => {
-  if (e.key === "Enter") e.preventDefault();
-});
-
-/* 📤 Upload + COMPRESSION */
+/* 📤 Upload + compression */
 function upload() {
   const file = photoInput.files[0];
   const text = textInput.value.trim();
@@ -39,9 +32,7 @@ function upload() {
   const img = new Image();
   const reader = new FileReader();
 
-  reader.onload = e => {
-    img.src = e.target.result;
-  };
+  reader.onload = e => img.src = e.target.result;
 
   img.onload = () => {
     const canvas = document.createElement("canvas");
@@ -54,49 +45,50 @@ function upload() {
     canvas.height = img.height * scale;
 
     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    const compressed = canvas.toDataURL("image/jpeg", 0.6);
 
-    const compressedBase64 = canvas.toDataURL("image/jpeg", 0.6);
-
-    push(ref(db, "people"), {
-      img: compressedBase64,
-      text: text,
-      votes: 0
-    });
+    push(ref(db, "people"), { img: compressed, text, votes: 0 });
   };
 
   reader.readAsDataURL(file);
-
   textInput.value = "";
   photoInput.value = "";
   consent.checked = false;
 }
 
-/* 📥 Live update */
+/* 📥 Load people */
 onValue(ref(db, "people"), snapshot => {
   people = [];
   snapshot.forEach(child => {
     people.push({ id: child.key, ...child.val() });
   });
+  resetQueue();
   renderAll();
 });
 
-/* 🎲 Random pair */
-function getRandomPair() {
-  if (people.length < 2) return;
-
-  let a = Math.floor(Math.random() * people.length);
-  let b;
-  do {
-    b = Math.floor(Math.random() * people.length);
-  } while (a === b);
-
-  currentPair = [people[a], people[b]];
+/* 🔀 Перемешать массив */
+function shuffle(array) {
+  return array.sort(() => Math.random() - 0.5);
 }
 
-/* 🖼 Show pair */
+/* 🔄 Создать новую очередь */
+function resetQueue() {
+  queue = shuffle([...people]);
+}
+
+/* 🎲 Взять следующую уникальную пару */
+function getNextPair() {
+  if (queue.length < 2) {
+    resetQueue(); // когда закончились — начинаем новый круг
+  }
+  return [queue.shift(), queue.shift()];
+}
+
+/* 🖼 Показать пару */
 function showPair() {
-  getRandomPair();
-  if (!currentPair.length) return;
+  if (people.length < 2) return;
+
+  currentPair = getNextPair();
 
   img1.src = currentPair[0].img;
   img2.src = currentPair[1].img;
@@ -108,10 +100,13 @@ function showPair() {
 
 /* 👍 Vote */
 function vote(index) {
-  const person = currentPair[index];
-  update(ref(db, "people/" + person.id), {
-    votes: person.votes + 1
+  const winner = currentPair[index];
+  update(ref(db, "people/" + winner.id), {
+    votes: winner.votes + 1
   });
+
+  showPair();
+  updateTop5();
 }
 
 /* 🏆 Top 5 */
@@ -132,12 +127,10 @@ function updateTop5() {
     });
 }
 
-/* 🔄 Render */
 function renderAll() {
   showPair();
   updateTop5();
 }
 
-/* 🌍 Make global */
 window.upload = upload;
 window.vote = vote;
