@@ -1,5 +1,12 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import { getDatabase, ref, push, onValue, update } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+import {
+  getDatabase,
+  ref,
+  push,
+  onValue,
+  update,
+  get
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
 /* 🔥 Firebase config */
 const firebaseConfig = {
@@ -15,12 +22,14 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
-/* 🧠 State */
-let people = [];             // глобальные фото, получаем один раз
-let lastSideById = {};       // для чередования сторон локально
-let currentPair = [];        // текущая пара конкретного пользователя
+/* 🧠 LOCAL STATE */
+let people = [];
+let currentPair = [];
+let lastSideById = {};
 
-/* 📤 Upload photo */
+/* =========================
+   📤 UPLOAD
+========================= */
 function upload() {
   const file = photoInput.files[0];
   const text = textInput.value.trim();
@@ -48,18 +57,21 @@ function upload() {
   reader.readAsDataURL(file);
 }
 
-/* 🔗 Share box */
+/* =========================
+   🔗 SHARE BOX
+========================= */
 function showShareBox(userId) {
   const link = `${window.location.origin}/?ref=${userId}`;
+
   const box = document.createElement("div");
   box.className = "share-box";
   box.innerHTML = `
     <h3>You are now in the rating pool.</h3>
     <p>Share this link with friends to see how you rank.</p>
-    <input type="text" id="shareLink" value="${link}" readonly>
-    <br>
+    <input id="shareLink" value="${link}" readonly>
     <button onclick="copyLink()">Copy Link</button>
   `;
+
   document.querySelector(".upload").appendChild(box);
 }
 
@@ -70,38 +82,57 @@ function copyLink() {
   alert("Link copied!");
 }
 
-/* 📥 Load people from Firebase (один раз на странице) */
+/* =========================
+   📥 LOAD PEOPLE (ONCE)
+========================= */
+async function loadPeopleOnce() {
+  const snapshot = await get(ref(db, "people"));
+  people = [];
+
+  snapshot.forEach(child => {
+    people.push({ id: child.key, ...child.val() });
+  });
+
+  renderPair();
+  updateTop5();
+}
+
+loadPeopleOnce();
+
+/* =========================
+   🏆 LIVE TOP 5 ONLY
+========================= */
 onValue(ref(db, "people"), snapshot => {
   people = [];
   snapshot.forEach(child => {
     people.push({ id: child.key, ...child.val() });
   });
-  updateTop5();    // глобальный топ
-  renderPair();    // индивидуальная пара локально
+  updateTop5(); // ❗ без renderPair
 });
 
-/* 🔀 Shuffle helper */
+/* =========================
+   🎲 PAIRS (LOCAL)
+========================= */
 function shuffle(arr) {
   return arr.sort(() => Math.random() - 0.5);
 }
 
-/* 🎯 Get random pair for this user */
 function getRandomPair() {
   if (people.length < 2) return null;
-  const shuffled = shuffle([...people]);
-  return [shuffled[0], shuffled[1]];
+  const s = shuffle([...people]);
+  return [s[0], s[1]];
 }
 
-/* 🖼 Render pair for this user only */
 function renderPair() {
   const pair = getRandomPair();
   if (!pair) return;
 
-  let left = pair[0];
-  let right = pair[1];
+  let [left, right] = pair;
 
-  // чередование сторон локально
-  if (lastSideById[left.id] === "left") [left, right] = [right, left];
+  // строгая смена сторон
+  if (lastSideById[left.id] === "left") {
+    [left, right] = [right, left];
+  }
 
   lastSideById[left.id] = "left";
   lastSideById[right.id] = "right";
@@ -114,21 +145,23 @@ function renderPair() {
   currentPair = [left, right];
 }
 
-/* 🗳 Vote (отдельно для этого пользователя) */
+/* =========================
+   🗳 VOTE
+========================= */
 function vote(index) {
   const winner = currentPair[index];
 
-  // обновляем глобально только голос
   update(ref(db, "people/" + winner.id), {
     votes: (winner.votes || 0) + 1
   });
 
-  // экран меняется только локально
-  renderPair();
-  updateTop5();
+  winner.votes++; // локально
+  renderPair();   // ❗ только для этого пользователя
 }
 
-/* 🏆 Global Top 5 */
+/* =========================
+   🏆 TOP 5
+========================= */
 function updateTop5() {
   const top = document.getElementById("top5");
   top.innerHTML = "";
@@ -146,8 +179,9 @@ function updateTop5() {
     });
 }
 
-/* 🌍 Expose */
+/* =========================
+   🌍 EXPOSE
+========================= */
 window.upload = upload;
 window.vote = vote;
 window.copyLink = copyLink;
-window.renderPair = renderPair;
