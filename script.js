@@ -1,7 +1,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getDatabase, ref, push, onValue, update } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
-/* Firebase config */
+/* 🔥 Firebase config */
 const firebaseConfig = {
   apiKey: "AIzaSyAq0TW99q5QXU6AyrCO4m7pu-N4zPDlsQE",
   authDomain: "ratemerigaimage.firebaseapp.com",
@@ -15,12 +15,12 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
-/* State */
-let people = [];
-let currentPair = [];
-let lastSideById = {}; // для strict side alternation
+/* 🧠 State */
+let people = [];             // глобальные фото, получаем один раз
+let lastSideById = {};       // для чередования сторон локально
+let currentPair = [];        // текущая пара конкретного пользователя
 
-/* Upload photo */
+/* 📤 Upload photo */
 function upload() {
   const file = photoInput.files[0];
   const text = textInput.value.trim();
@@ -48,10 +48,9 @@ function upload() {
   reader.readAsDataURL(file);
 }
 
-/* Show share box */
+/* 🔗 Share box */
 function showShareBox(userId) {
   const link = `${window.location.origin}/?ref=${userId}`;
-
   const box = document.createElement("div");
   box.className = "share-box";
   box.innerHTML = `
@@ -64,7 +63,6 @@ function showShareBox(userId) {
   document.querySelector(".upload").appendChild(box);
 }
 
-/* Copy link */
 function copyLink() {
   const input = document.getElementById("shareLink");
   input.select();
@@ -72,43 +70,38 @@ function copyLink() {
   alert("Link copied!");
 }
 
-/* Load people from Firebase */
+/* 📥 Load people from Firebase (один раз на странице) */
 onValue(ref(db, "people"), snapshot => {
   people = [];
   snapshot.forEach(child => {
     people.push({ id: child.key, ...child.val() });
   });
-  showPair();
-  updateTop5();
+  updateTop5();    // глобальный топ
+  renderPair();    // индивидуальная пара локально
 });
 
-/* Shuffle helper */
+/* 🔀 Shuffle helper */
 function shuffle(arr) {
   return arr.sort(() => Math.random() - 0.5);
 }
 
-/* Get next pair */
-function getNextPair() {
-  let available = people;
-  if (available.length < 2) return null;
-
-  const shuffled = shuffle([...available]);
+/* 🎯 Get random pair for this user */
+function getRandomPair() {
+  if (people.length < 2) return null;
+  const shuffled = shuffle([...people]);
   return [shuffled[0], shuffled[1]];
 }
 
-/* Show pair with strict side alternation */
-function showPair() {
-  const pair = getNextPair();
+/* 🖼 Render pair for this user only */
+function renderPair() {
+  const pair = getRandomPair();
   if (!pair) return;
 
   let left = pair[0];
   let right = pair[1];
 
-  if (lastSideById[left.id] === "left") {
-    [left, right] = [right, left];
-  }
-
-  currentPair = [left, right];
+  // чередование сторон локально
+  if (lastSideById[left.id] === "left") [left, right] = [right, left];
 
   lastSideById[left.id] = "left";
   lastSideById[right.id] = "right";
@@ -117,21 +110,25 @@ function showPair() {
   img2.src = right.img;
   text1.textContent = left.text;
   text2.textContent = right.text;
+
+  currentPair = [left, right];
 }
 
-/* Vote */
+/* 🗳 Vote (отдельно для этого пользователя) */
 function vote(index) {
   const winner = currentPair[index];
 
+  // обновляем глобально только голос
   update(ref(db, "people/" + winner.id), {
     votes: (winner.votes || 0) + 1
   });
 
-  showPair();
+  // экран меняется только локально
+  renderPair();
   updateTop5();
 }
 
-/* Top 5 */
+/* 🏆 Global Top 5 */
 function updateTop5() {
   const top = document.getElementById("top5");
   top.innerHTML = "";
@@ -149,7 +146,8 @@ function updateTop5() {
     });
 }
 
-/* Expose functions to HTML */
+/* 🌍 Expose */
 window.upload = upload;
 window.vote = vote;
 window.copyLink = copyLink;
+window.renderPair = renderPair;
