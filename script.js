@@ -15,17 +15,17 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
-/* 🧠 Local state */
+/* 🧠 State */
 let people = [];
 let currentPair = [];
 
-/* ⛔ запрет Enter в поле текста */
+/* ⛔ запрет Enter */
 const textInput = document.getElementById("textInput");
 textInput.addEventListener("keydown", e => {
   if (e.key === "Enter") e.preventDefault();
 });
 
-/* 📤 Upload photo */
+/* 📤 Upload + COMPRESSION */
 function upload() {
   const file = photoInput.files[0];
   const text = textInput.value.trim();
@@ -36,14 +36,34 @@ function upload() {
     return;
   }
 
+  const img = new Image();
   const reader = new FileReader();
-  reader.onload = () => {
+
+  reader.onload = e => {
+    img.src = e.target.result;
+  };
+
+  img.onload = () => {
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
+
+    const MAX_WIDTH = 500;
+    const scale = MAX_WIDTH / img.width;
+
+    canvas.width = MAX_WIDTH;
+    canvas.height = img.height * scale;
+
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+    const compressedBase64 = canvas.toDataURL("image/jpeg", 0.6);
+
     push(ref(db, "people"), {
-      img: reader.result,
+      img: compressedBase64,
       text: text,
       votes: 0
     });
   };
+
   reader.readAsDataURL(file);
 
   textInput.value = "";
@@ -51,7 +71,7 @@ function upload() {
   consent.checked = false;
 }
 
-/* 📥 Получаем людей из базы в реальном времени */
+/* 📥 Live update */
 onValue(ref(db, "people"), snapshot => {
   people = [];
   snapshot.forEach(child => {
@@ -60,7 +80,7 @@ onValue(ref(db, "people"), snapshot => {
   renderAll();
 });
 
-/* 🎲 Случайная пара */
+/* 🎲 Random pair */
 function getRandomPair() {
   if (people.length < 2) return;
 
@@ -73,7 +93,7 @@ function getRandomPair() {
   currentPair = [people[a], people[b]];
 }
 
-/* 🖼 Показать пару */
+/* 🖼 Show pair */
 function showPair() {
   getRandomPair();
   if (!currentPair.length) return;
@@ -86,7 +106,7 @@ function showPair() {
   rating2.textContent = "Votes: " + currentPair[1].votes;
 }
 
-/* 👍 Голос */
+/* 👍 Vote */
 function vote(index) {
   const person = currentPair[index];
   update(ref(db, "people/" + person.id), {
@@ -94,7 +114,7 @@ function vote(index) {
   });
 }
 
-/* 🏆 Топ 5 */
+/* 🏆 Top 5 */
 function updateTop5() {
   const top = document.getElementById("top5");
   top.innerHTML = "";
@@ -112,12 +132,12 @@ function updateTop5() {
     });
 }
 
-/* 🔄 Перерисовка */
+/* 🔄 Render */
 function renderAll() {
   showPair();
   updateTop5();
 }
 
-/* Делаем функции доступными кнопкам */
+/* 🌍 Make global */
 window.upload = upload;
 window.vote = vote;
