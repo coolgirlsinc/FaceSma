@@ -2,6 +2,8 @@ body {
   font-family: Arial, sans-serif;
   text-align: center;
   background: #f2f2f2;
+  margin: 0;
+  padding: 0;
 }
 
 .header {
@@ -24,10 +26,12 @@ body {
 
 .upload-row input[type="text"] {
   width: 220px;
+  padding: 5px;
 }
 
 .consent {
   white-space: nowrap;
+  font-size: 14px;
 }
 
 .upload-btn {
@@ -39,10 +43,12 @@ body {
   color: white;
   border: none;
   cursor: pointer;
+  transition: 0.2s;
 }
 
 .upload-btn:hover {
   background: #a00000;
+  transform: scale(1.05);
 }
 
 .container {
@@ -59,6 +65,12 @@ body {
   width: 220px;
   cursor: pointer;
   border: 1px solid #ccc;
+  transition: 0.2s;
+}
+
+.card:hover {
+  transform: scale(1.05);
+  box-shadow: 0 0 10px rgba(0,0,0,0.15);
 }
 
 .card img {
@@ -95,4 +107,39 @@ body {
 
 .top-item span {
   font-size: 14px;
+}
+
+/* 🔥 Viral share box */
+.share-box {
+  margin: 20px auto;
+  padding: 15px;
+  max-width: 500px;
+  background: #fff3cd;
+  border: 1px solid #ffeeba;
+  border-radius: 6px;
+}
+
+.share-box h3 {
+  margin-top: 0;
+}
+
+.share-box input {
+  width: 80%;
+  padding: 6px;
+  margin: 10px 0;
+  font-size: 14px;
+}
+
+.share-box button {
+  padding: 6px 12px;
+  font-weight: bold;
+  background: #8b0000;
+  color: white;
+  border: none;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.share-box button:hover {
+  background: #a00000;
 }

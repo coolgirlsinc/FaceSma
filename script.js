@@ -1,6 +1,13 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import { getDatabase, ref, push, onValue, update } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+import {
+  getDatabase,
+  ref,
+  push,
+  onValue,
+  update
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
+/* 🔥 Firebase config */
 const firebaseConfig = {
   apiKey: "AIzaSyAq0TW99q5QXU6AyrCO4m7pu-N4zPDlsQE",
   authDomain: "ratemerigaimage.firebaseapp.com",
@@ -11,14 +18,19 @@ const firebaseConfig = {
   appId: "1:438635126104:web:5723fb25ff663c5bcf192d"
 };
 
+/* 🔌 Init */
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
+/* 🧠 State */
 let people = [];
-let queue = [];      // 🔥 очередь без повторов
 let currentPair = [];
 
-/* 📤 Upload + compression */
+/* 🗳 Local memory */
+let votedIds = JSON.parse(localStorage.getItem("votedIds") || "[]");
+let lastSideById = JSON.parse(localStorage.getItem("lastSideById") || "{}");
+
+/* 📤 Upload */
 function upload() {
   const file = photoInput.files[0];
   const text = textInput.value.trim();
@@ -32,28 +44,59 @@ function upload() {
   const img = new Image();
   const reader = new FileReader();
 
-  reader.onload = e => img.src = e.target.result;
+  reader.onload = e => (img.src = e.target.result);
 
   img.onload = () => {
     const canvas = document.createElement("canvas");
     const ctx = canvas.getContext("2d");
 
-    const MAX_WIDTH = 500;
+    const MAX_WIDTH = 300;
     const scale = MAX_WIDTH / img.width;
 
     canvas.width = MAX_WIDTH;
     canvas.height = img.height * scale;
 
     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-    const compressed = canvas.toDataURL("image/jpeg", 0.6);
 
-    push(ref(db, "people"), { img: compressed, text, votes: 0 });
+    const compressed = canvas.toDataURL("image/webp", 0.5);
+
+    const newRef = push(ref(db, "people"), {
+      img: compressed,
+      text,
+      votes: 0,
+      createdAt: Date.now()
+    });
+
+    // 🔥 VIRAL HOOK
+    showShareBox(newRef.key);
   };
 
   reader.readAsDataURL(file);
-  textInput.value = "";
-  photoInput.value = "";
-  consent.checked = false;
+}
+
+/* 🔗 Share box (FAKE ranking for now) */
+function showShareBox(userId) {
+  const link = `${window.location.origin}/?ref=${userId}`;
+
+  const box = document.createElement("div");
+  box.className = "share-box";
+  box.innerHTML = `
+    <h3>You are now in the rating pool.</h3>
+    <p>Share this link with friends to see how you rank.</p>
+    <input type="text" id="shareLink" value="${link}" readonly>
+    <br>
+    <button onclick="copyLink()">Copy Link</button>
+  `;
+
+  document.querySelector(".upload").appendChild(box);
+}
+
+/* 📋 Copy */
+function copyLink() {
+  const input = document.getElementById("shareLink");
+  input.select();
+  document.execCommand("copy");
+  alert("Link copied!");
 }
 
 /* 📥 Load people */
@@ -62,47 +105,60 @@ onValue(ref(db, "people"), snapshot => {
   snapshot.forEach(child => {
     people.push({ id: child.key, ...child.val() });
   });
-  resetQueue();
-  renderAll();
+
+  showPair();
+  updateTop5();
 });
 
-/* 🔀 Перемешать массив */
-function shuffle(array) {
-  return array.sort(() => Math.random() - 0.5);
+/* 🔀 Shuffle */
+function shuffle(arr) {
+  return arr.sort(() => Math.random() - 0.5);
 }
 
-/* 🔄 Создать новую очередь */
-function resetQueue() {
-  queue = shuffle([...people]);
-}
-
-/* 🎲 Взять следующую уникальную пару */
+/* 🎯 Pair logic */
 function getNextPair() {
-  if (queue.length < 2) {
-    resetQueue(); // когда закончились — начинаем новый круг
-  }
-  return [queue.shift(), queue.shift()];
+  let available = people.filter(p => !votedIds.includes(p.id));
+  if (available.length < 2) available = [...people];
+  if (available.length < 2) return null;
+
+  const shuffled = shuffle([...available]);
+  return [shuffled[0], shuffled[1]];
 }
 
-/* 🖼 Показать пару */
+/* 🖼 Show pair (strict side alternation) */
 function showPair() {
-  if (people.length < 2) return;
+  const pair = getNextPair();
+  if (!pair) return;
 
-  currentPair = getNextPair();
+  let left = pair[0];
+  let right = pair[1];
 
-  img1.src = currentPair[0].img;
-  img2.src = currentPair[1].img;
-  text1.textContent = currentPair[0].text;
-  text2.textContent = currentPair[1].text;
-  rating1.textContent = "Votes: " + currentPair[0].votes;
-  rating2.textContent = "Votes: " + currentPair[1].votes;
+  if (lastSideById[left.id] === "left") {
+    [left, right] = [right, left];
+  }
+
+  currentPair = [left, right];
+
+  lastSideById[left.id] = "left";
+  lastSideById[right.id] = "right";
+  localStorage.setItem("lastSideById", JSON.stringify(lastSideById));
+
+  img1.src = left.img;
+  img2.src = right.img;
+  text1.textContent = left.text;
+  text2.textContent = right.text;
 }
 
-/* 👍 Vote */
+/* 🗳 Vote */
 function vote(index) {
   const winner = currentPair[index];
+
+  votedIds.push(currentPair[0].id, currentPair[1].id);
+  votedIds = [...new Set(votedIds)];
+  localStorage.setItem("votedIds", JSON.stringify(votedIds));
+
   update(ref(db, "people/" + winner.id), {
-    votes: winner.votes + 1
+    votes: (winner.votes || 0) + 1
   });
 
   showPair();
@@ -127,10 +183,7 @@ function updateTop5() {
     });
 }
 
-function renderAll() {
-  showPair();
-  updateTop5();
-}
-
+/* 🌍 Expose */
 window.upload = upload;
 window.vote = vote;
+window.copyLink = copyLink;
