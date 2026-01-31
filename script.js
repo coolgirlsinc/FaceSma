@@ -44,14 +44,14 @@ function upload() {
   reader.onload = e => {
     const imgData = e.target.result;
 
-    const newRef = push(ref(db, "people"), {
+    push(ref(db, "people"), {
       img: imgData,
       text,
       votes: 0,
       createdAt: Date.now()
     });
 
-    showShareBox(newRef.key);
+    showShareBox();
   };
 
   reader.readAsDataURL(file);
@@ -60,14 +60,14 @@ function upload() {
 /* =========================
    🔗 SHARE BOX
 ========================= */
-function showShareBox(userId) {
-  const link = `${window.location.origin}/?ref=${userId}`;
+function showShareBox() {
+  const link = "https://coolgirlsinc.github.io/FaceSma/";
 
   const box = document.createElement("div");
   box.className = "share-box";
   box.innerHTML = `
     <h3>You are now in the rating pool.</h3>
-    <p>Share this link with friends to see how you rank.</p>
+    <p>Share this link with friends to see <strong>how you rank</strong>.</p>
     <input id="shareLink" value="${link}" readonly>
     <button onclick="copyLink()">Copy Link</button>
   `;
@@ -107,7 +107,7 @@ onValue(ref(db, "people"), snapshot => {
   snapshot.forEach(child => {
     people.push({ id: child.key, ...child.val() });
   });
-  updateTop5(); // ❗ без renderPair
+  updateTop5();
 });
 
 /* =========================
@@ -155,8 +155,8 @@ function vote(index) {
     votes: (winner.votes || 0) + 1
   });
 
-  winner.votes++; // локально
-  renderPair();   // ❗ только для этого пользователя
+  winner.votes++;
+  renderPair();
 }
 
 /* =========================
